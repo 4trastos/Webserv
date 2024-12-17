@@ -6,13 +6,12 @@
 /*   By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/13 11:52:00 by davgalle          #+#    #+#             */
-/*   Updated: 2024/12/13 15:18:50 by davgalle         ###   ########.fr       */
+/*   Updated: 2024/12/17 13:26:53 by davgalle         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "server/Server.hpp"
-#include "client/Client.hpp"
-#include "config/Config.hpp"
+#include "../server/Server.hpp"
+#include "../parse/ConfigParser.hpp"
 #include "librs.h"
 
 int	main(int argc, char **argv)

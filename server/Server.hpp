@@ -6,15 +6,14 @@
 /*   By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/13 11:53:30 by davgalle          #+#    #+#             */
-/*   Updated: 2024/12/13 15:49:38 by davgalle         ###   ########.fr       */
+/*   Updated: 2024/12/17 14:49:18 by davgalle         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef SERVER_HPP
 # define SERVER_HPP
 
-# include "config/Config.hpp"
-# include "client/Client.hpp"
+# include "../client/Client.hpp"
 
 class Server
 {
@@ -31,7 +30,7 @@ class Server
 		Server(Config &config);
 		~Server();
 
-		void run();	//bucle principal del servidor.
+		void run();								//bucle principal del servidor.
 };
 
 #endif

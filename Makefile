@@ -6,7 +6,7 @@
 #    By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/12/13 11:45:24 by davgalle          #+#    #+#              #
-#    Updated: 2024/12/13 12:12:25 by davgalle         ###   ########.fr        #
+#    Updated: 2024/12/17 15:48:42 by davgalle         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -19,9 +19,9 @@ CFLAGS = -Wall -Werror -Wextra -std=c++98
 RM = rm -f
 
 SRC = src/main.cpp \
-	server/server.cpp \
-	client/client.cpp \
-	config/config.cpp
+	server/Server.cpp \
+	client/Client.cpp \
+	config/Config.cpp
 
 OBJTS = $(SRC:.cpp=.o)
 

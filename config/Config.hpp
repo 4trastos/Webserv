@@ -6,7 +6,7 @@
 /*   By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/13 11:53:35 by davgalle          #+#    #+#             */
-/*   Updated: 2024/12/13 15:10:33 by davgalle         ###   ########.fr       */
+/*   Updated: 2024/12/17 17:54:49 by davgalle         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,8 @@ class Config
 	private:
 		int	port;
 		std::string host;
+		std::string root;
+		std::string index;
 		void	loadConfig(const std::string &file);
 		
 	public:
@@ -37,6 +39,8 @@ class Config
 
 		int	getPort() const;
 		std::string getHost() const;
+		std::string getRoot() const;
+    	std::string getIndex() const;
 };
 
 #endif
