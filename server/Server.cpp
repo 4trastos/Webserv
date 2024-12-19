@@ -6,11 +6,11 @@
 /*   By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/12/13 11:53:40 by davgalle          #+#    #+#             */
-/*   Updated: 2024/12/17 17:48:33 by davgalle         ###   ########.fr       */
+/*   Updated: 2024/12/19 12:48:33 by davgalle         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "Server.hpp"
+#include "../server/Server.hpp"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -18,48 +18,103 @@
 #include <fcntl.h>
 #include <cstring>
 #include <sstream>
+#include <netdb.h> 
 
 Server::Server(Config &config) {
 	setupSocket(config);	
 }
 
 Server::~Server(){
-	close(socketOne);
+	if (socketfd >= 0)
+		close(socketfd);
+}
+
+template <typename T>
+std::string to_string(T value){
+	std::stringstream ss;
+	ss << value;
+	return ss.str();
 }
 
 void	Server::setupSocket(Config &config){
-	// crear el socket
-	socketOne = socket(AF_INET, SOCK_STREAM, 0);
-	if (socketOne < 0)
-		std::cout << "Error al crear el socket" << std::endl;
+	struct addrinfo hints, *res, *head;
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC; 	 	// IPv4 o IPv6
+	hints.ai_socktype = SOCK_STREAM;	// tipo de socket
+	hints.ai_flags = AI_PASSIVE;		// Usar la IP de la máquina
 
-	// Configurar el socket no bloqueante
-	fcntl(socketOne, F_SETFL, O_NONBLOCK);
+	std::string portStr = to_string(config.getPort());
+
+	// Obtener una lista de direcciones posibles
+	int status = getaddrinfo(config.getHost().c_str(), portStr.c_str(), &hints, &res);
+	if (status != 0){
+		std::cout << "Error en getaddrinfo: " << gai_strerror(status) << std::endl;
+        return;
+	}
 	
-	// Asignar el socket a una dirección
-	sockaddr_in address;
-	address.sin_family = AF_INET;
-	address.sin_port = htons(config.getPort());
-	address.sin_addr.s_addr = inet_addr(config.getHost().c_str());
+	head = res;
+	//int socketfd;
+	while (res != NULL)
+	{
+		socketfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		if (socketfd < 0)
+			std::cerr << "Error: no se pudo crear el socket" << std::endl;
+		else {
+            // Configurar SO_LINGER para evitar TIME_WAIT
+            struct linger sl;
+            sl.l_onoff = 1;  // Activar linger
+            sl.l_linger = 0; // Cerrar el socket inmediatamente
+            if (setsockopt(socketfd, SOL_SOCKET, SO_LINGER, &sl, sizeof(sl)) < 0) {
+                std::cerr << "Error en setsockopt (SO_LINGER)" << std::endl;
+                close(socketfd);
+                res = res->ai_next;
+                continue;
+            }
+			if (bind(socketfd, res->ai_addr, res->ai_addrlen) == 0)
+			{
+				std::cout << "Socket creado y enlazado en " << config.getHost() << ":" << config.getPort() << std::endl;
+            	break;
+			}
+		}
+		close(socketfd);
+		res = res->ai_next;
+	}
+
+	// Si no se encontró ninguna dirección válida
+	if (res == NULL) {
+		std::cout << "Error: no se pudo enlazar el socket a ninguna dirección" << std::endl;
+		std::cerr << "Error al enlazar el socket: " << strerror(errno) << std::endl;
+		freeaddrinfo(head);
+		return;
+	}
 	
-	// Enlazar el socket
-	if (bind(socketOne, (struct sockaddr *)&address, sizeof(address)) < 0)
-		std::cout << "Error bind" << std::endl;
-	
-	// Escuchar conexiones entrantes
-	if (listen(socketOne, SOMAXCONN) < 0)
-		std::cout << "Error en listen" << std::endl;
+	freeaddrinfo(head);
+
+	// Configurar SO_REUSEADDR para reutilizar el puerto
+	int opt = 1;
+	if (setsockopt(socketfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0) {
+		std::cerr << "Error en setsockopt" << std::endl;
+		close(socketfd);
+		return;
+	}
+
+	// Configurar el socket como no bloqueante
+	fcntl(socketfd, F_SETFL, O_NONBLOCK);
+
+	std::cout << "Socket escuchando en " << config.getHost() << ":" << config.getPort() << " con fd: " << socketfd << std::endl;
+
 	// Agregar el socket a la lista de descriptores de 'poll'
-	std::cout << "Socket creado y escuchando en " << config.getHost() << ":" << config.getPort() << " con fd:" << socketOne << std::endl;
-	pollfd serverPollfd = {socketOne, POLLIN, 0};
+	pollfd serverPollfd = {socketfd, POLLIN, 0};
 	this->fds.push_back(serverPollfd);
 }
 
 void	Server::acceptNewClient()
 {
-	int clientSocket = accept(socketOne, NULL, NULL);
-	if (clientSocket < 0)
+	int clientSocket = accept(socketfd, NULL, NULL);
+	if (clientSocket < 0){
+		std::cout << "Error al aceptar nueva conexión" << std::endl;
 		return;
+	}
 
 	// Configurar el nuevo cliente como no bloqueante
 	fcntl(clientSocket, F_SETFL, O_NONBLOCK);
@@ -67,15 +122,16 @@ void	Server::acceptNewClient()
 	// Agregar el nuevo cliente a poll
 	struct pollfd clientPollfd = {clientSocket, POLLIN, 0};
 	this->fds.push_back(clientPollfd);
-	this->clients.push_back(Client(clientSocket));
+	std::cout << "Nuevo cliente conectado, fd: " << clientSocket << std::endl;
 }
 
-void	Server::handleClient(int clientIndex)
+void	Server::handleClient(int clientIndex, Config &config)
 {
+	std::cout << "Leyendo las solicitudes" << std::endl;
 	char buffer[1024];
 	int	bytesRead = recv(fds[clientIndex].fd, buffer, sizeof(buffer), 0);
 
-	if (bytesRead < 0)
+	if (bytesRead <= 0)
 	{
 		close(fds[clientIndex].fd);
 		fds.erase(fds.begin() + clientIndex);
@@ -83,66 +139,61 @@ void	Server::handleClient(int clientIndex)
 	}
 	else
 	{
-		std::cout << "Datos recibidos: " << buffer << std::endl;
+        buffer[bytesRead] = '\0';
+        std::cout << "Petición recibida: " << buffer << std::endl;
 
-		// Simplemente procesamos cualquier petición con "GET /"
-		std::string request(buffer);
-		if (request.find("GET /") != std::string::npos)
-		{
-			std::ifstream file("../html/index.html");
-			if (!file)
-			{
-				std::string error404 = "HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found";
-				send(fds[clientIndex].fd, error404.c_str(), error404.size(), 0);
-			}
-			else
-			{
-				// Leer el contenido del archivo HTML
-				std::stringstream htmlContent;
-				htmlContent << file.rdbuf();
-				file.close();
+        std::string request(buffer);
+        if (request.find("GET /") != std::string::npos) {
+            std::string filePath = config.getRoot() + "/" + config.getIndex();
 
-				std::string content = htmlContent.str();
+            std::ifstream file(filePath.c_str());
+            if (!file) {
+                std::string error404 = "HTTP/1.1 404 Not Found\r\nContent-Length: 13\r\n\r\n404 Not Found";
+                send(fds[clientIndex].fd, error404.c_str(), error404.size(), 0);
+            }
+			else {
+                std::stringstream htmlContent;
+                htmlContent << file.rdbuf();
+                file.close();
 
-				// Construir y enviar la respuesta HTTP
-				std::stringstream response;
-				response << "HTTP/1.1 200 OK\r\n";
-				response << "Content-Length: " << content.size() << "\r\n";
-				response << "Content-Type: text/html\r\n";
-				response << "\r\n";
-				response << content;
+                std::string content = htmlContent.str();
 
-				std::string responseStr = response.str();
-				send(fds[clientIndex].fd, responseStr.c_str(), responseStr.size(), 0);
-			}
-		}
-	}
+                std::stringstream response;
+                response << "HTTP/1.1 200 OK\r\n";
+                response << "Content-Length: " << content.size() << "\r\n";
+                response << "Content-Type: text/html\r\n";
+                response << "\r\n";
+                response << content;
+
+                std::string responseStr = response.str();
+                send(fds[clientIndex].fd, responseStr.c_str(), responseStr.size(), 0);
+            }
+        }
+    }
 }
 
-void	Server::run()
+void	Server::run(Config &config)
 {
-	std::cout << "dentro de run: " << std::endl;
-	std::cout << "Tamaño de fds: " << fds.size() << std::endl;
-	std::cout << "Socket principal (socketOne): " << socketOne << std::endl;
-
 	while (true)
 	{
-		// Esperar conexiones o datos con poll
 		int pollCount = poll(fds.data(), fds.size(), -1);
-		std::cout << "dentro antes del for: " << std::endl;
 		if (pollCount < 0)
-			throw std::runtime_error("Error en poll");
+			std::cerr << "Error en poll: " << strerror(errno) << std::endl;
+		
+		std::cout << "Poll detectó actividad en " << pollCount << " fds" << std::endl;
+		
 		for (size_t i = 0; i < fds.size(); i++)
 		{
-			std::cout << "dentro de for: " << std::endl;
+			std::cout << "Revisando fd: " << fds[i].fd << ", revents: " << fds[i].revents << std::endl;
 			if (fds[i].revents & POLLIN)
 			{
-				if (fds[i].fd == socketOne){
+				std::cout << "dentro" << std::endl;
+				if (fds[i].fd == socketfd){
 					std::cout << "Cliente conectado: " << std::endl;
-					acceptNewClient();	// Nueva conexión
+					acceptNewClient();
 				}
 				else{
-					handleClient(i);	// Peticiones de clientes
+					handleClient(i, config);
 				}
 			}
 		}

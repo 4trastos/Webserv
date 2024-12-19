@@ -1,22 +1,26 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   Client.cpp                                         :+:      :+:    :+:   */
+/*   incl.hpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/12/13 11:53:42 by davgalle          #+#    #+#             */
-/*   Updated: 2024/12/18 15:54:50 by davgalle         ###   ########.fr       */
+/*   Created: 2024/12/19 10:12:51 by davgalle          #+#    #+#             */
+/*   Updated: 2024/12/19 10:13:37 by davgalle         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "../client/Client.hpp"
-#include "../config/Config.hpp"
-#include <unistd.h>
-#include <netdb.h> 
+#ifndef INCL_HPP
+# define INCL_HPP
 
-Client::Client(int socket): socketClient(socket){}
+# include <cctype>
+# include <string>
+# include <iostream>
+# include <fstream>
+# include <cstdlib>
 
-Client::~Client(){
-	close(socketClient);
-}
+std::string trim_left(const std::string& str);
+std::string trim_right(const std::string& str);
+std::string trim(const std::string& str);
+
+#endif

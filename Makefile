@@ -6,7 +6,7 @@
 #    By: davgalle <davgalle@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2024/12/13 11:45:24 by davgalle          #+#    #+#              #
-#    Updated: 2024/12/17 15:48:42 by davgalle         ###   ########.fr        #
+#    Updated: 2024/12/19 10:15:30 by davgalle         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -21,7 +21,8 @@ RM = rm -f
 SRC = src/main.cpp \
 	server/Server.cpp \
 	client/Client.cpp \
-	config/Config.cpp
+	config/Config.cpp \
+	incl/incl.cpp
 
 OBJTS = $(SRC:.cpp=.o)
 
